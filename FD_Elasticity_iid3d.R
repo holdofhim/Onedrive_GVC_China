@@ -43,11 +43,11 @@ rcty.row <- lapply(cty.rsp, function(cty) which(substr(ciid,1,3)==cty)) # Respon
 
 FD.sector <- zeros(S,length(sectors))
 colnames(FD.sector) <- sectors
-FD.sector[,1] <- ifelse(as.integer(iid/10)<=21, 1, 0)      # Non-durable
-FD.sector[,2] <- ifelse(as.integer(iid/10)==22, 1, 0)      # Durable
-FD.sector[,3] <- ifelse(as.integer(iid/10)==31, 1, 0)      # Utilities & Construction
-FD.sector[,4] <- ifelse(as.integer(iid/10)==32, 1, 0)      # Service
-FD.sector[,5] <- 1                                         # All Industries
+FD.sector[,1] <- ifelse(as.integer(iid/10)<=21, 10, 0)      # Non-durables
+FD.sector[,2] <- ifelse(as.integer(iid/10)==22, 10, 0)      # Durables
+FD.sector[,3] <- ifelse(as.integer(iid/10)==31, 10, 0)      # Utilities & Construction
+FD.sector[,4] <- ifelse(as.integer(iid/10)==32, 10, 0)      # Services
+FD.sector[,5] <- 10                                         # Entire sectors
 
 FD.growth <- as.data.frame(zeros(SN, length(sectors)))
 dimnames(FD.growth) <- list(ciid, sectors)
@@ -160,15 +160,15 @@ for (year in period) {
 
 ### Prepare an excel file
 
-note <- c(paste0("(1) This file calculates the elasticities of output (y), value added (va), intermediate export (mx), final export (fx) and export (ex) to the real FD change in ",cty.src,"."),
+note <- c(paste0("(1) This file calculates the 10 times the elasticities of output (y), value added (va), intermediate export (mx), final export (fx) and export (ex) to the real FD change in ",cty.src,"."),
           "(2) All units are in percentage term.", 
-          "(3) 34 original industries in the ICIO table are aggregated to 20 industries as below.",
+          "(3) 34 original industries in the ICIO table are aggregated to sectors as below.",
           "(4) Durable = 22x, Non-durable = 10x & 21x, Utility & Construction = 31x, Service = 32x")
 
 wb <- createWorkbook()
 addWorksheet(wb, "Note")
 writeData(wb, "Note", note)
-writeDataTable(wb, "Note", data.frame(iid, iid.eng, iid.kr), startRow=5, withFilter=FALSE)
+writeDataTable(wb, "Note", data.frame(iid, iid.eng), startRow=5, withFilter=FALSE)
 filename <- paste0("FD_elasticity_",iclass,"_",cty.src,".xlsx")
 
 
@@ -187,19 +187,20 @@ for (j in cty.rsp) {
       writeDataTable(wb, j, result, startRow=2, withFilter=FALSE, tableStyle="TableStyleMedium9")
 }
 
-saveWorkbook(wb, paste0(excel, filename), overwrite=TRUE)
+saveWorkbook(wb, paste0(data,filename), overwrite=TRUE)
 
 
 
-### Write Data in the prepared workbook and save it
+### Save Data in STATA format
 
 result.all <- c()
 
 for (j in cty.rsp) {
       result <- as.data.frame(eps.j.yr[[j]])
+      colnames(result) <- eps.colname
       result.all <- rbind(result.all, result)
 }
-colnames(result.all) <- eps.colname
+
 write.dta(result.all, paste0(data,"FD_elasticity_",iclass,"_",cty.src,".dta"), convert.factors="string")      
 
 

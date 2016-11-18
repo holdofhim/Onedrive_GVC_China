@@ -1,12 +1,14 @@
 
 
-# 2016-10-30
+# 2016-11-18
 
 rm(list = ls())                       # Remove all
-setwd("C:/OneDrive/GVC_China/Code/")  # Working Directory
-data <- "C:/OneDrive/GVC_China/data/" # Data Directory
+setwd("D:/OneDrive/GVC_China/Code/")  # Working Directory
+data <- "D:/OneDrive/GVC_China/data/" # Data Directory
 
 library(matlab)
+library(plyr)
+library(parallel)
 library(openxlsx)
 library(foreign)
 
@@ -15,10 +17,8 @@ library(foreign)
 
 # Sample period, Source Country, Responding Countries, Sector classification, and Variables of interest
 
-period <- c(2005,2006,2007,2008,2009,2010)            # Sample Period should be the base-years to use
+period <- c(1995:2010)                                # Sample Period should be the base-years to use
 cty.src <- "CHN"                                      # Source country should be a single country
-cty.rsp <- list("KOR","CHN","JPN","TWN","IDN","MYS","PHL","THA","SGP","VNM","DEU","USA")  
-                                                      # For other countries, choose them together in this list
 iclass <- "iid3d"                                     # Industry classification to apply
 sectors <- c("ndura","dura","ucon","svc","all")       # Sectors are classified based on durables vs. non-durables
 vars    <- c("y","va","mx","fx","ex")
@@ -27,6 +27,7 @@ vars    <- c("y","va","mx","fx","ex")
 # Load file
 
 load(paste0(data,"ICIO_",iclass,"_matrix.RData"))     # These RData include all necessary data for analysis
+cty.rsp <- cid
 
 
 # Row positions of Source Country & Responding Countries in ICIO matrix
@@ -211,16 +212,17 @@ saveWorkbook(wb, paste0(data, filename), overwrite=TRUE)
 
 
 
-### Write Data in the prepared workbook and save it
+### Save Data in STATA format
 
 result.all <- c()
 
 for (j in cty.rsp) {
-      result <- as.data.frame(eps.j.yr[[j]])
-      result.all <- rbind(result.all, result)
+  result <- as.data.frame(eps.j.yr[[j]])
+  colnames(result) <- eps.colname
+  result.all <- rbind(result.all, result)
 }
-colnames(result.all) <- eps.colname
-write.dta(result.all, paste0(data,"FD_elasticity_",iclass,"_",cty.src,".dta"), convert.factors="string")      
+
+write.dta(result.all, paste0(data,"FD_Real_Growth_Effect_",iclass,"_",cty.src,"_",d.year,".dta"), convert.factors="string")      
 
 
 ### End ###
