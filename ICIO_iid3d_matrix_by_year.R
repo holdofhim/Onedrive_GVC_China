@@ -1,9 +1,9 @@
 
 
 rm(list = ls())                        # Remove all
-setwd("D:/Copy/GVC/ICIO/Rcode")        # Working Directory
-excel <- "D:/Copy/GVC/ICIO/Excel/"     # Excel Raw data Directory
-rdata <- "D:/Copy/GVC/ICIO/Rdata/"     # RData Saving Directory
+setwd("D:/KDI/GVC/ICIO/Rcode")        # Working Directory
+excel <- "D:/KDI/GVC/ICIO/Excel/"     # Excel Raw data Directory
+rdata <- "D:/KDI/GVC/ICIO/Rdata/"     # RData Saving Directory
 
 library(openxlsx)
 library(matlab)

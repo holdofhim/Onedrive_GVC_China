@@ -1,40 +1,44 @@
 
+# 2017-09-06
+# Calculating Upstream & Downstream Effect
+
 
 rm(list = ls())                         # Remove all
 setwd("D:/onedrive/GVC_China/code/")    # Working Directory
 rdata <- "D:/KDI/GVC/ICIO/Rdata/"       # Raw Rdata Directory
 data  <- "D:/onedrive/GVC_China/data/"  # Saving Directory
 
+library(foreign)
 library(matlab)
 library(openxlsx)
-library(foreign)
-
+library(readxl)
 
 ### Set-up ###
 
-# Assign Sample period, Source Country, Responding Countries, Sector classification, and Variables of interest
+# Sample period, Source Country, Responding Countries, Sector classification, and Variables of interest
 
-period <- c(1995,2000,2005,2008,2009,2010,2011)       # Sample Period
-cty.src <- "USA"                                      # Source country should be a single country
+period <- c(2008,2009,2010)  # Sample Period should be the base-years to use
 iclass <- "iid3d"                                     # Industry classification to apply
 load(paste0(rdata,"ICIO_",iclass,"_meta.RData"))      # load industry classification meta data
+cty.src <- "CHN"                                      # Source country should be a single country
+cty.rsp <- cid.np                                     # Responding countries
 sectors <- c("ndura","dura","ucon","svc","all")       # Sectors are classified based on durables vs. non-durables
-vars    <- c("y","va","mx","fx","ex")           
+vars    <- c("y","va","mx","fx","ex")
 
 
 
 # Prepare an excel output file
 
-note <- c(paste0("(1) This file calculates 10 times the elasticities of output (y), value added (va), intermediate export (mx), final export (fx) and export (ex) to the real FD change in ",cty.src,"."),
+note <- c(paste0("(1) This file calculates 10 times the elasticities of output (y), value added (va) to the unit FD change in ",cty.src,"."),
           "(2) All units are in percentage term.", 
-          "(3) 34 original industries in the ICIO table are aggregated to 20 industries as below.",
+          "(3) 34 original industries in the ICIO table are aggregated to industries as below.",
           "(4) Durable = 22x, Non-durable = 10x & 21x, Utility & Construction = 31x, Service = 32x")
 
 wb <- createWorkbook()
 addWorksheet(wb, "Note")
 writeData(wb, "Note", note)
 writeDataTable(wb, "Note", data.frame(iid, iid.eng, iid.kr), startRow=5, withFilter=FALSE)
-filename <- paste0("FD_elasticity_",iclass,"_",cty.src,"_by_year.xlsx")
+filename <- paste0("FD_Elasticity_Up&Down_",iclass,"_",cty.src,"_by_year.xlsx")
 
 
 
@@ -48,12 +52,14 @@ eps.j.yr <- list()
 for (yr in period) {
       
       # Load file
-      load(paste0(rdata,"ICIO_iid3d_matrix_1995.RData"))    # These RData include all necessary data for analysis
+      #if (yr>2011) load(paste0(rdata,"ICIO_",iclass,"_matrix_2011.RData"))
+      #else load(paste0(rdata,"ICIO_",iclass,"_matrix_",yr,".RData"))    # These RData include all necessary data for analysis
+      load(paste0(rdata,"ICIO_",iclass,"_matrix_2011.RData"))
       rm(icio)
       cty.rsp <- cid.np
       
       
-
+      
       # Row positions of Source Country & Responding Countries in ICIO matrix
       scty.row <- which(substr(ciid.np, 1, 3) == cty.src)                     # Source country's row position
       names(cty.rsp) <- cty.rsp
@@ -76,71 +82,49 @@ for (yr in period) {
       
       ## Obtain Output & Value-added Share Matrix
       
-      Y.alloc <- LeonInv %*% FDD                    # Y.alloc = Output Allocation Matrix
-      dimnames(Y.alloc) <- list(ciid, ciid.np)      # FDD = Final Demand Diagonalized Matrix
+      # Hhat = Demand shock matrix
+      Ahat <- M / (ones(SN,1)%*%t(y))
+      dimnames(Ahat) <- list(ciid, ciid)
+      Leonhat <- eye(SN)-Ahat
+      Hhat <- solve(Leonhat)
+      
+      Y.alloc <- Hhat %*% t(FDD)                    # Y.alloc = Output Allocation Matrix
+      dimnames(Y.alloc) <- list(ciid.np, ciid)      # FDD = Final Demand Diagonalized Matrix
       
       yInv <- zeros(SN,1)
       names(yInv) <- ciid
       yInv <- 1/y
-      OS <- diag(yInv) %*% Y.alloc                  # OS = Output Share Matrix (S matrix in Bems et al. 2010)
-      dimnames(OS) <- list(ciid, ciid.np)
+      OS <- Y.alloc %*% diag(yInv)                  # OS = Output Share Matrix (S matrix in Bems et al. 2010)
+      dimnames(OS) <- list(ciid.np, ciid)
       
-      VA.alloc <- diag(r) %*% Y.alloc               # VA.alloc = Value-added Allocation Matrix
-      dimnames(VA.alloc) <- list(ciid, ciid.np)
+      VA.alloc <- Y.alloc %*% diag(r)               # VA.alloc = Value-added Allocation Matrix
+      dimnames(VA.alloc) <- list(ciid.np, ciid)
       
       vaInv <- zeros(SN,1)
       names(vaInv) <- ciid
       vaInv <- 1/va
-      VAS <- diag(vaInv) %*% VA.alloc               # VAS = Value-added Share Matrix
-      dimnames(VAS) <- list(ciid, ciid.np)
+      VAS <- VA.alloc %*% diag(vaInv)               # VAS = Value-added Share Matrix
+      dimnames(VAS) <- list(ciid.np, ciid)
       
       
-      # Obtain Export & Import Share
-      
-      mx <- rowSums(MX)       # mx (SNx1) = Intermediate Export by ciid (do not include home trade values)
-      mx[mx==0] <- 0.01       # Set the minimum export equal to 0.01 to avoid zero division
-      fx <- rowSums(FX)       # fx = Final Export by ciid
-      fx[fx==0] <- 0.01
-      ex  <- mx + fx          # ex = Total Export by ciid
-
-      MXS <- MX / mx          # MXS = Intermediate Export Share
-      FX.diag <- NULL         # FX.diag = Final Export diagonalized matrix
-      for (n in c(1:N.np)) {
-            FX.n    <- diag(FX[,n]) %*% IDD[,1:S]
-            FX.diag <- cbind(FX.diag, FX.n)
-      }
-      FXS <- FX.diag / fx     # FXS = Final Export Share
-
-
       
       ### Calculating Elasticity by Broad Sectors & Countries ###
       
       # Country-by-Sector level Growth Rate
-      yhat  <- lapply(FD.growth, function(x) OS %*% x)      # yhat (SN by # of broad sectors) = Output growth by ciid
-      vahat <- lapply(FD.growth, function(x) VAS %*% x)     # vahat = VA growth
-      mxhat <- lapply(yhat,      function(x) MXS %*% x)     # mxhat = intermediate export growth
-      fxhat <- lapply(FD.growth, function(x) FXS %*% x)     # fxhat = final export growth
+      yhat  <- lapply(FD.growth, function(x) Down %*% x)      # yhat (SN by # of broad sectors) = Output growth by ciid
+      vahat <- lapply(FD.growth, function(x) Down %*% x)     # vahat = VA growth
 
       yhat  <- as.data.frame(yhat)
       vahat <- as.data.frame(vahat)
-      mxhat <- as.data.frame(mxhat)      
-      fxhat <- as.data.frame(fxhat)
-      exhat <- mx/ex*mxhat + fx/ex*fxhat                    # exhat = Total Export growth
-      
+
       yhat.j  <- lapply(cty.rsp, function(j) yhat[rcty.row[[j]],])  # yhat.j = Sector-level Output growth for country j
       vahat.j <- lapply(cty.rsp, function(j) vahat[rcty.row[[j]],])
-      mxhat.j <- lapply(cty.rsp, function(j) mxhat[rcty.row[[j]],]) 
-      fxhat.j <- lapply(cty.rsp, function(j) fxhat[rcty.row[[j]],]) 
-      exhat.j <- lapply(cty.rsp, function(j) exhat[rcty.row[[j]],]) 
-      
+
       
       # Obtain Aggregate Growth Rates
       
       eps.y  <- list()        # Elasticity of output
       eps.va <- list()        # Elasticity of VA
-      eps.mx <- list()        # Elasticity of intermediate export
-      eps.fx <- list()        # Elasticity of final export
-      eps.ex <- list()        # Elasticity of total export
       eps.j  <- list()        # All Elasticities above by Responding country
       
       for (k in 1:length(cty.rsp)) {
@@ -150,17 +134,11 @@ for (yr in period) {
             # Aggregate Growth Rate = weighted avg of sector-level growth rate
             yhat.j.agg  <- colSums((y[j]/sum(y[j]))*yhat.j[[k]])
             vahat.j.agg <- colSums((va[j]/sum(va[j]))*vahat.j[[k]])  
-            mxhat.j.agg <- colSums((mx[j]/sum(mx[j]))*mxhat.j[[k]])
-            fxhat.j.agg <- colSums((fx[j]/sum(fx[j]))*fxhat.j[[k]])
-            exhat.j.agg <- colSums((ex[j]/sum(ex[j]))*exhat.j[[k]])
-            
+
             # Stack sector growth rate and aggregate growth rate under in a row
             eps.y[[k]]  <- rbind(yhat.j[[k]],  "AGG.Economy"=yhat.j.agg)   # eps.y = Elasticity of Output for country j
             eps.va[[k]] <- rbind(vahat.j[[k]], "AGG.Economy"=vahat.j.agg)  # Elasticity of VA
-            eps.mx[[k]] <- rbind(mxhat.j[[k]], "AGG.Economy"=mxhat.j.agg)  # Elasticity of intermediate export
-            eps.fx[[k]] <- rbind(fxhat.j[[k]], "AGG.Economy"=fxhat.j.agg)  # Elasticity of final export 
-            eps.ex[[k]] <- rbind(exhat.j[[k]], "AGG.Economy"=exhat.j.agg)  # Elasticity of total export
-            
+
             # Combine all elasticities by responding country and stack by year
             eps.j[[k]] <- cbind(yr, c(ciid[j],paste0(cty.rsp[k],"_TOT")),
                                 eps.y[[k]], eps.va[[k]], eps.mx[[k]], eps.fx[[k]], eps.ex[[k]])
@@ -197,7 +175,9 @@ for (j in cty.rsp) {
       result.all <- rbind(result.all, result)
 }
 
-write.dta(result.all, paste0(data,"FD_elasticity_",iclass,"_",cty.src,"_by_year.dta"), convert.factors="string")
+write.dta(result.all, paste0(data,"FD_elasticity_Up&Down_",iclass,"_",cty.src,"_by_year.dta"), convert.factors="string")
 
 
 ### End ###
+
+

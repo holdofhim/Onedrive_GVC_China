@@ -3,7 +3,6 @@
 rm(list = ls())                         # Remove all
 setwd("D:/onedrive/GVC_China/code/")    # Working Directory
 rdata <- "D:/KDI/GVC/ICIO/Rdata/"       # Raw Rdata Directory
-excel <- "D:/KDI/GVC/ICIO/excel/"       # Raw Excel data Directory
 data  <- "D:/onedrive/GVC_China/data/"  # Saving Directory
 
 library(matlab)
@@ -19,7 +18,7 @@ library(foreign)
 period <- c(2008,2009,2010)  # Sample Period should be the base-years to use
 iclass <- "iid3d"                                     # Industry classification to apply
 load(paste0(rdata,"ICIO_",iclass,"_meta.RData"))      # load industry classification meta data
-cty.src <- "CHN"                                      # Source country should be a single country
+cty.src <- "USA"                                      # Source country should be a single country
 cty.rsp <- cid.np                                     # Responding countries
 sectors <- c("ndura","dura","ucon","svc","all")       # Sectors are classified based on durables vs. non-durables
 vars    <- c("y","va","mx","fx","ex")
@@ -27,11 +26,11 @@ vars    <- c("y","va","mx","fx","ex")
 
 # Import estimate of FD Growth rate
 d.year <- paste0(period[2]-period[1], "-year") 
-FDhat <- as.list(read.xlsx(paste0(excel,"FD_estimation_",cty.src,".xlsx"), 
-                           sheet=paste0(d.year,"_FD_growth"), rowNames=TRUE, startRow=2))
+FDhat <- as.list(read.xlsx(paste0(data,"FD_estimation_",cty.src,".xlsx"), 
+                           sheet="FD_growth_2009-2011", rowNames=TRUE, startRow=2))
 names(FDhat) <- period
 
-FDhat.name  <- as.list(read.xlsx(paste0(excel,"FD_estimation_",cty.src,".xlsx"), sheet=paste0(d.year,"_FD_growth"),
+FDhat.name  <- as.list(read.xlsx(paste0(data,"FD_estimation_",cty.src,".xlsx"), sheet="FD_growth_2009-2011",
                                  colNames=FALSE, startRow=2, rows=1:2, cols=(1+1:length(period))))
 names(FDhat.name) <- period
 

@@ -2,7 +2,7 @@ clear all
 set more off
 cd D:\onedrive\GVC_china\data
 
-foreach sector in "C17T19TEX" "C303233CEQ" {
+foreach sector in "C17T19TEX" "C24CHM" "C303233CEQ" {
 	import excel using China_M_structure, firstrow
 	destring year CHN*, replace
 	keep if inlist(year,1995,2000,2005,2010)

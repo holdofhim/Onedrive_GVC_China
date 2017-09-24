@@ -12,14 +12,16 @@ library(xlsx)
 ## ICIO includes 62 countries (plus 5 processing ID) with 34 industries over 1995-2011
 period <- c(1995,2000,2005,2008,2009,2010,2011)
 
-## Some Countries by Sectors
-chn <- c(1309:1377)
-kor <- c(613:646)
-jpn <- c(579:612)
-twn <- c(2024:2057)
 
 for (yr in period) {
-      load(paste0(rdata,"ICIO_matrix_",yr,".RData"))
+      
+      load(paste0(rdata,"ICIO_iid3d_matrix_",yr,".RData"))
+      
+      chn <- which(substr(ciid,1,3)=="CHN")
+      kor <- which(substr(ciid,1,3)=="KOR")
+      jpn <- which(substr(ciid,1,3)=="JPN")
+      twn <- which(substr(ciid,1,3)=="TWN")
+
       M.chn     <- M[1:length(ciid), chn]
       M.chn.chn <- colSums(M.chn[chn,])
       M.chn.kor <- colSums(M.chn[kor,])

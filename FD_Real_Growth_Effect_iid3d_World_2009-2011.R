@@ -70,10 +70,10 @@ CHN <- paste0("CHN_",iid)
 FDhat[KOR,] <- read.xlsx(paste0(excel,"FD_estimation_KOR.xlsx"), sheet=paste0(d.year,"_FD_growth"),
                          cols=c(1:(length(period)+1)), rowNames=TRUE, startRow=2)
 FDhat[JPN,] <- read.xlsx(paste0(data,"FD_estimation_JPN.xlsx"), sheet=paste0(d.year,"_FD_growth"),
+                          cols=c(1:(length(period)+1)), rowNames=TRUE, startRow=2)
+FDhat[USA,] <- read.xlsx(paste0(data,"FD_estimation_USA.xlsx"), sheet="FD_growth_2009-2011",
                          cols=c(1:(length(period)+1)), rowNames=TRUE, startRow=2)
-FDhat[USA,] <- read.xlsx(paste0(excel,"FD_estimation_USA.xlsx"), sheet=paste0(d.year,"_FD_growth"),
-                         cols=c(1:(length(period)+1)), rowNames=TRUE, startRow=2)
-FDhat[CHN,] <- read.xlsx(paste0(excel,"FD_estimation_CHN.xlsx"), sheet=paste0(d.year,"_FD_growth"),
+FDhat[CHN,] <- read.xlsx(paste0(data,"FD_estimation_CHN.xlsx"), sheet="FD_growth_2009-2011",
                          cols=c(1:(length(period)+1)), rowNames=TRUE, startRow=2)
 FDhat <- as.list(FDhat)
 
