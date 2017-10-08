@@ -17,7 +17,7 @@ library(openxlsx)
 
 # Assign Sample period, Source Country, Responding Countries, Sector classification, and Variables of interest
 
-period <- c(1995:2011)   # Sample Period
+period <- c(1995:2010)   # Sample Period
 cty.src <- "CHN"                                      # Source country should be a single country
 iclass <- "iid3d"                                     # Industry classification to apply
 sectors <- c("ndura","dura","ucon","svc","all")       # Sectors are classified based on durables vs. non-durables

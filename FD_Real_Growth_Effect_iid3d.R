@@ -1,6 +1,6 @@
 
 
-# 2016-11-18
+# 2017-10-09
 
 rm(list = ls())                       # Remove all
 setwd("D:/OneDrive/GVC_China/Code/")  # Working Directory
@@ -32,7 +32,7 @@ cty.rsp <- cid
 
 # Row positions of Source Country & Responding Countries in ICIO matrix
 
-scty.row <- which(substr(ciid, 1, 3) == cty.src)                        # Source country's row position
+scty.row <- which(substr(ciid,1,3) == cty.src)                          # Source country's row position
 names(cty.rsp) <- cty.rsp
 rcty.row <- lapply(cty.rsp, function(cty) which(substr(ciid,1,3)==cty)) # Responding countries' row position
 
@@ -76,7 +76,7 @@ for (year in period) {
       
       FD.growth <- as.data.frame(zeros(SN, length(sectors)))
       dimnames(FD.growth) <- list(ciid, sectors)
-      FD.growth[scty.row,] <- FD.sector
+      FD.growth[scty.row,] <- ones(length(cid[substr(cid,1,3)==cty.src]),1) %x% FD.sector
       
       
       # Obtain Output & Value-added Share Matrix
@@ -191,7 +191,7 @@ wb <- createWorkbook()
 addWorksheet(wb, "Note")
 writeData(wb, "Note", note)
 writeDataTable(wb, "Note", data.frame(iid,iid.eng), startRow=5, withFilter=FALSE)
-filename <- paste0("FD_Real_Growth_Effect_",iclass,"_",cty.src,"_",d.year,".xlsx")
+filename <- paste0("FD_Real_Growth_Effect_",iclass,"_",cty.src,".xlsx")
 
 
 
@@ -222,7 +222,7 @@ for (j in cty.rsp) {
   result.all <- rbind(result.all, result)
 }
 
-write.dta(result.all, paste0(data,"FD_Real_Growth_Effect_",iclass,"_",cty.src,"_",d.year,".dta"), convert.factors="string")      
+write.dta(result.all, paste0(data,"FD_Real_Growth_Effect_",iclass,"_",cty.src,".dta"), convert.factors="string")      
 
 
 ### End ###
