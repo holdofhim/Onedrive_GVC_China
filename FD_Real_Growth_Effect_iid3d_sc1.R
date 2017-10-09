@@ -62,7 +62,7 @@ for (year in period) {
       
       # Calculate real FD growth rate in China (Price Index is assumed to be same across countries)
       
-      FDhat <- (FD.src[,yr+1]/FD.src[,yr]*xrate[yr]-1)/rep(price[[yr]],N)*100
+      FDhat <- (FD.src[,yr+1]/FD.src[,yr]*xrate[yr]/rep(price[[yr]],N)-1)*100
       FD.growth <- as.vector(FDhat)
       
       
