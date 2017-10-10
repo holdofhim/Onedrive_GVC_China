@@ -1,6 +1,6 @@
 
 
-# 2017-10-09
+# 2017-10-10
 
 rm(list = ls())                       # Remove all
 setwd("D:/OneDrive/GVC_China/data/")  # Working Directory
@@ -19,21 +19,22 @@ library(foreign)
 period <- c(1995:2010)                                # Sample Period should be the base-years to use
 cty.src <- "CHN"                                      # Source country should be a single country
 iclass <- "iid3d"                                     # Industry classification to apply
+iid3d <- c(rep("ndura",5), rep("dura",5), "ucon", rep("svc",6))
 sectors <- c("ndura","dura","ucon","svc","all")       # Sectors are classified based on durables vs. non-durables
 vars    <- c("y","va","mx","fx","ex")
+
 
 
 # Load file
 
 load(paste0("ICIO_",iclass,"_matrix.RData"))          # These RData include all necessary data for analysis
-cty.rsp <- cid
 
 
 # Row positions of Source Country & Responding Countries in ICIO matrix
 
 scty.row <- which(substr(ciid,1,3) == cty.src)                          # Source country's row position
-names(cty.rsp) <- cty.rsp
-rcty.row <- lapply(cty.rsp, function(cty) which(substr(ciid,1,3)==cty)) # Responding countries' row position
+rcty.row <- lapply(cid.np, function(cty) which(substr(ciid,1,3)==cty))  # Responding countries' row position
+names(rcty.row) <- cid.np
 
 
 # Import Price Index by sector and Exchange Rate from Excel file
@@ -57,13 +58,20 @@ gr.j.yr <- list()       # a List to save calculated growth rates by responding c
 ### Estimation for Source Country's impact
 
 for (year in period) {
-      
+
       yr <- year-1994
       
       # Calculate real FD growth rate in China (Price Index is assumed to be same across countries)
       
       FDhat <- (FD.src[,yr+1]/FD.src[,yr]*xrate[yr]/rep(price[[yr]],N)-1)*100
-      FD.growth <- as.vector(FDhat)
+
+      FD.growth <- as.data.frame(zeros(SN, length(sectors)))
+      dimnames(FD.growth) <- list(ciid,sectors)
+      FD.growth[,1] <- ifelse(as.integer(rep(iid,N)/10)<=21, FDhat, 0)  # Non-durables
+      FD.growth[,2] <- ifelse(as.integer(rep(iid,N)/10)==22, FDhat, 0)  # Durables
+      FD.growth[,3] <- ifelse(as.integer(rep(iid,N)/10)==31, FDhat, 0)  # Utility and Construction
+      FD.growth[,4] <- ifelse(as.integer(rep(iid,N)/10)==32, FDhat, 0)  # Services
+      FD.growth[,5] <- FDhat                                            # All Industries
       
       
       # Obtain Output & Value-added Share Matrix
@@ -108,17 +116,22 @@ for (year in period) {
       
       # Country-by-Sector level Growth Rate
 
-      yhat  <- OS %*% FD.growth             # yhat (SN by # of broad sectors) = Output growth by ciid
-      vahat <- VAS %*% FD.growth            # vahat = VA growth
-      mxhat <- MXS %*% FD.growth            # mxhat = intermediate export growth
-      fxhat <- FXS %*% FD.growth            # fxhat = final export growth
-      exhat <- mx/ex*mxhat + fx/ex*fxhat    # exhat = Total Export growth
+      yhat  <- lapply(FD.growth, function(x) OS %*% x)      # yhat (SN by # of broad sectors) = Output growth by ciid
+      vahat <- lapply(FD.growth, function(x) VAS %*% x)     # vahat = VA growth
+      mxhat <- lapply(yhat,      function(x) MXS %*% x)     # mxhat = Intermediate Export growth
+      fxhat <- lapply(FD.growth, function(x) FXS %*% x)     # fxhat = Final Export growth
       
-      yhat.j  <- lapply(cty.rsp, function(j) yhat[rcty.row[[j]]])  # yhat.j = Sector-level Output growth for country j
-      vahat.j <- lapply(cty.rsp, function(j) vahat[rcty.row[[j]]])
-      mxhat.j <- lapply(cty.rsp, function(j) mxhat[rcty.row[[j]]]) 
-      fxhat.j <- lapply(cty.rsp, function(j) fxhat[rcty.row[[j]]]) 
-      exhat.j <- lapply(cty.rsp, function(j) exhat[rcty.row[[j]]]) 
+      yhat  <- as.data.frame(yhat)
+      vahat <- as.data.frame(vahat)
+      mxhat <- as.data.frame(mxhat)      
+      fxhat <- as.data.frame(fxhat)
+      exhat <- mx/ex*mxhat + fx/ex*fxhat                    # exhat = Total Export growth
+
+      yhat.j  <- lapply(cid.np, function(j) yhat[rcty.row[[j]],])  # yhat.j = Sector-level Output growth for country j
+      vahat.j <- lapply(cid.np, function(j) vahat[rcty.row[[j]],])
+      mxhat.j <- lapply(cid.np, function(j) mxhat[rcty.row[[j]],]) 
+      fxhat.j <- lapply(cid.np, function(j) fxhat[rcty.row[[j]],]) 
+      exhat.j <- lapply(cid.np, function(j) exhat[rcty.row[[j]],]) 
       
       
       # Obtain Aggregate Growth Rates
@@ -130,22 +143,31 @@ for (year in period) {
       gr.ex <- list()        # Growth rate of total export
       gr.j  <- list()        # All growth rates above by Responding country
       
-      for (k in 1:length(cty.rsp)) {          # Growth Rates of country k
+      for (k in 1:N.np) {          # Growth Rates of country k
             
-            j <- rcty.row[[k]]                # Country's row position
+            j <- rcty.row[[k]]     # Country's row position
             
             # Aggregate Growth Rate = weighted avg of sector-level growth rate
       
-            gr.y[[k]]  <- c(yhat.j[[k]], sum((y[yr,,][j]/sum(y[yr,,][j]))*yhat.j[[k]]))
-            gr.va[[k]] <- c(vahat.j[[k]], sum((va[yr,,][j]/sum(va[yr,,][j]))*vahat.j[[k]]))  
-            gr.mx[[k]] <- c(mxhat.j[[k]], sum((mx[j]/sum(mx[j]))*mxhat.j[[k]]))
-            gr.fx[[k]] <- c(fxhat.j[[k]], sum((fx[j]/sum(fx[j]))*fxhat.j[[k]]))
-            gr.ex[[k]] <- c(exhat.j[[k]], sum((ex[j]/sum(ex[j]))*exhat.j[[k]]))
+            yhat.j.agg  <- colSums((y[yr,,][j]/sum(y[yr,,][j]))*yhat.j[[k]])
+            vahat.j.agg <- colSums((va[yr,,][j]/sum(va[yr,,][j]))*vahat.j[[k]])  
+            mxhat.j.agg <- colSums((mx[j]/sum(mx[j]))*mxhat.j[[k]])
+            fxhat.j.agg <- colSums((fx[j]/sum(fx[j]))*fxhat.j[[k]])
+            exhat.j.agg <- colSums((ex[j]/sum(ex[j]))*exhat.j[[k]])
             
             
+            # Stack sector growth rate and aggregate growth rate under in a row
+
+            gr.y[[k]]  <- rbind(yhat.j[[k]], "AGG.Economy"=yhat.j.agg)
+            gr.va[[k]] <- rbind(vahat.j[[k]], "AGG.Economy"=vahat.j.agg)
+            gr.mx[[k]] <- rbind(mxhat.j[[k]], "AGG.Economy"=mxhat.j.agg)
+            gr.fx[[k]] <- rbind(fxhat.j[[k]], "AGG.Economy"=fxhat.j.agg)
+            gr.ex[[k]] <- rbind(exhat.j[[k]], "AGG.Economy"=exhat.j.agg)
+            
+
             # Combine all growth rates by responding country and stack by year
 
-            gr.j[[k]] <- cbind(FDhat.name[[yr]], c(ciid[j],paste0(cty.rsp[k],"_TOT")), 
+            gr.j[[k]] <- cbind(FDhat.name[[yr]], c(ciid[j],paste0(cid.np[k],"_TOT")), 
                                 gr.y[[k]], gr.va[[k]], gr.mx[[k]], gr.fx[[k]], gr.ex[[k]])
             if (year==period[1]) gr.j.yr[[k]] <- gr.j[[k]]   else gr.j.yr[[k]] <- rbind(gr.j.yr[[k]], gr.j[[k]])
 
@@ -172,10 +194,10 @@ filename <- paste0("FD_Real_Growth_Effect_",iclass,"_",cty.src,"_sc1.xlsx")
 
 ### Convert gr.j.yr to dataframe for each country and save the resutls to the xlsx file
 
-names(gr.j.yr) <- cty.rsp
-gr.colname <- c("year", "ciid", paste0("gr_",vars,"_all"))
+names(gr.j.yr) <- cid.np
+gr.colname <- c("year", "ciid", paste("gr",rep(vars, each=length(sectors)),sectors,sep="_"))
 
-for (j in cty.rsp) {
+for (j in cid.np) {
       result <- as.data.frame(gr.j.yr[[j]])
       colnames(result) <- gr.colname
       addWorksheet(wb, j)
@@ -191,7 +213,7 @@ saveWorkbook(wb, filename, overwrite=TRUE)
 
 result.all <- c()
 
-for (j in cty.rsp) {
+for (j in cid.np) {
   result <- as.data.frame(gr.j.yr[[j]])
   colnames(result) <- gr.colname
   result.all <- rbind(result.all, result)
